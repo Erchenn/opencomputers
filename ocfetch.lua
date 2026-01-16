@@ -7,6 +7,22 @@ local function hr()
   print(string.rep("-", 40))
 end
 
+local function fmtBytes(n)
+  n = tonumber(n) or 0
+  local units = {"B", "KB", "MB", "GB", "TB"}
+  local i = 1
+  while n >= 1024 and i < #units do
+    n = n / 1024
+    i = i + 1
+  end
+  return string.format("%.1f %s", n, units[i])
+end
+
+local function pct(used, total)
+  if not total or total <= 0 then return "n/a" end
+  return string.format("%.1f%%", (used / total) * 100)
+end
+
 print("OpenComputers system info")
 hr()
 
@@ -18,9 +34,9 @@ print("Energy (RF):        ", computer.energy(), "/", computer.maxEnergy())
 hr()
 
 -- Memory
-print("Total RAM (bytes):  ", computer.totalMemory())
-print("Free RAM (bytes):   ", computer.freeMemory())
-print("Used RAM (bytes):   ", computer.totalMemory() - computer.freeMemory())
+print("Total RAM:", fmtBytes(computer.totalMemory()))
+print("Free  RAM:", fmtBytes(computer.freeMemory()))
+print("Used  RAM:", fmtBytes(computer.totalMemory() - computer.freeMemory()))
 hr()
 
 -- Filesystems
@@ -28,11 +44,13 @@ print("Filesystems:")
 for addr in component.list("filesystem") do
   local proxy = component.proxy(addr)
   local label = proxy.getLabel() or addr:sub(1, 8)
-  local size  = proxy.spaceTotal()
-  local free  = proxy.spaceAvailable()
-  print(string.format(
-    "  %-12s %8d / %8d bytes",
-    label, size - free, size
+
+  local total = proxy.spaceTotal() or 0
+  local free  = proxy.spaceAvailable() or 0
+  local used  = math.max(total - free, 0)
+
+  print(string.format(" %-12s %s / %s (%s)",
+    label, fmtBytes(used), fmtBytes(total), pct(used, total)
   ))
 end
 hr()
@@ -51,6 +69,6 @@ hr()
 
 -- Components
 print("Components:")
-for ctype in component.list() do
-  print("  -", ctype)
+for addr, ctype in component.list() do
+  print(string.format("  - %-12s %s", ctype, addr)
 end
