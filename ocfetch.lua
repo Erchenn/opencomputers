@@ -77,5 +77,5 @@ hr()
 -- Components
 print("Components:")
 for addr, ctype in component.list() do
-  print(string.format("  - %-12s %s", ctype, addr)
+  print(string.format("  - %-12s %s", ctype, addr))
 end
