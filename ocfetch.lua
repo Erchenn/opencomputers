@@ -43,15 +43,22 @@ hr()
 print("Filesystems:")
 for addr in component.list("filesystem") do
   local proxy = component.proxy(addr)
-  local label = proxy.getLabel() or addr:sub(1, 8)
+  local label = (proxy.getLabel and proxy.getLabel()) or addr:sub(1, 8)
 
-  local total = proxy.spaceTotal() or 0
-  local free  = proxy.spaceAvailable() or 0
-  local used  = math.max(total - free, 0)
+  local total, free, used
 
-  print(string.format(" %-12s %s / %s (%s)",
-    label, fmtBytes(used), fmtBytes(total), pct(used, total)
-  ))
+  if type(proxy.spaceTotal) == "function" and type(proxy.spaceAvailable) == "function" then
+    total = proxy.spaceTotal() or 0
+    free  = proxy.spaceAvailable() or 0
+    used  = math.max(total - free, 0)
+
+    print(string.format(" %-12s %s / %s (%s)",
+      label, fmtBytes(used), fmtBytes(total), pct(used, total)
+    ))
+  else
+    -- ФС без информации о размере (tmpfs/romfs/прочее)
+    print(string.format(" %-12s %s", label, "n/a"))
+  end
 end
 hr()
 
