@@ -29,7 +29,7 @@ hr()
 -- Lua / VM
 print("Lua version:        ", _VERSION)
 print("Uptime (s):         ", math.floor(computer.uptime()))
-print("Tick time (s):      ", computer.getTickTime())
+--print("Tick time (s):      ", computer.getTickTime())
 print("Energy (RF):        ", computer.energy(), "/", computer.maxEnergy())
 hr()
 
@@ -40,27 +40,38 @@ print("Used  RAM:", fmtBytes(computer.totalMemory() - computer.freeMemory()))
 hr()
 
 -- Filesystems
+
 print("Filesystems:")
-for addr in component.list("filesystem") do
-  local proxy = component.proxy(addr)
-  local label = (proxy.getLabel and proxy.getLabel()) or addr:sub(1, 8)
-
-  local total, free, used
-
-  if type(proxy.spaceTotal) == "function" and type(proxy.spaceAvailable) == "function" then
-    total = proxy.spaceTotal() or 0
-    free  = proxy.spaceAvailable() or 0
-    used  = math.max(total - free, 0)
-
-    print(string.format(" %-12s %s / %s (%s)",
-      label, fmtBytes(used), fmtBytes(total), pct(used, total)
-    ))
-  else
-    -- ФС без информации о размере (tmpfs/romfs/прочее)
-    print(string.format(" %-12s %s", label, "n/a"))
+local mountsByAddr = {}
+for proxy, path in fs.mounts() do
+  if proxy and proxy.address then
+    mountsByAddr[proxy.address] = path
   end
 end
-hr()
+
+for addr in component.list("filesystem") do
+  local p = component.proxy(addr)
+  local label = (p.getLabel and p.getLabel()) or addr:sub(1,8)
+  local mnt = mountsByAddr[addr] or "?"
+  local ro  = (p.isReadOnly and p.isReadOnly()) and " RO" or ""
+
+  local total = (type(p.spaceTotal) == "function") and p.spaceTotal() or nil
+
+  local used
+  if type(p.spaceUsed) == "function" then
+    used = p.spaceUsed()
+  elseif type(p.spaceAvailable) == "function" and total then
+    used = total - p.spaceAvailable()
+  end
+
+  if total and used then
+    print(string.format(" %-10s %-8s %s / %s (%s)%s",
+      label, mnt, fmtBytes(used), fmtBytes(total), pct(used,total), ro
+    ))
+  else
+    print(string.format(" %-10s %-8s %s%s", label, mnt, "n/a", ro))
+  end
+end
 
 -- GPU / Screen
 if component.isAvailable("gpu") then
